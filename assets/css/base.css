@@ -1,0 +1,37 @@
+/* ===== ROOT VARIABLES ===== */
+:root {
+    --primary-color: #58cc02;
+    --primary-hover: #46a302;
+
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+
+    --border-color: #e5e7eb;
+
+    --success: #10b981;
+    --error: #ef4444;
+
+    --shadow-soft: 0 8px 25px rgba(0,0,0,0.08);
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: linear-gradient(180deg,#f8fafc,#eef2ff);
+    color:var(--text-main);
+}
+
+/* ===== MAIN APP LAYOUT ===== */
+
+.app-container{
+    display:flex;
+    height:100vh;
+}

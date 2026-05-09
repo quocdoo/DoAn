@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>English Learning</title>
+
+<link rel="stylesheet" href="./assets/css/auth.css">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="logo">
+        <h1>Learn English</h1>
+    </div>
+
+    <div class="form-box">
+        <form id="loginForm" class="form active" onsubmit="handleLogin(event)">
+            <h2>Login</h2>
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button type="submit" class="btn">Login</button>
+            <p class="switch">
+                Don't have an account? <span onclick="showRegister()" style="cursor: pointer;">Register</span>
+            </p>
+        </form>
+
+        <form id="registerForm" class="form" onsubmit="handleRegister(event)">
+            <h2>Create Account</h2>
+            <input type="text" id="register-username" placeholder="Username">
+            <input type="email" id="register-email" placeholder="Email" required>
+            <input type="password" id="register-password" placeholder="Password" required>
+            <input type="password" id="register-confirm" placeholder="Confirm Password" required>
+            <button type="submit" class="btn">Register</button>
+            <p class="switch">
+                Already have an account? <span onclick="showLogin()" style="cursor: pointer;">Login</span>
+            </p>
+        </form>
+</div>
+
+</div>
+
+<script src="./js/auth.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Learning Hub</title>
+    <link rel="stylesheet" href="./assets/css/base.css">
+    <link rel="stylesheet" href="./assets/css/style.css">
+    <script src="https://kit.fontawesome.com/e4f7b1c3b0.js" crossorigin="anonymous"></script>
+
+
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="logo">
+                <h2>EngLearn</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="active" onclick="switchTab('reading', this)">
+                    <i class="fa-solid fa-book"></i> Reading</li>
+                <li onclick="switchTab('writing', this)">
+                    <i class="fa-solid fa-pencil"></i> Writing</li>
+                <li onclick="switchTab('grammar', this)">
+                    <i class="fa-solid fa-puzzle-piece"></i> Grammar</li>
+                <li onclick="switchTab('translate', this)">
+                    <i class="fa-solid fa-globe"></i> Translate</li>
+                <li onclick="switchTab('vocabulary', this)">
+                    <i class="fa-solid fa-book-open"></i> Vocabulary</li>
+                <li onclick="switchTab('ai-chat')">
+                    <i class="fa-solid fa-robot"></i> AI Tutor</li>
+                <li id="nav-admin-btn" style="display: none; background: #ffe5e5; color: #ff4b4b; font-weight: bold;" onclick="switchTab('admin-panel')">⚙️ Admin Panel</li>
+            </ul>
+        </nav>
+
+        <main class="content-area">
+            <div class="top-nav">
+                <div id="user-info-container" style="display: none;">
+                    <span id="header-user-name"> Đang tải...</span>
+                    <button class="btn-outline btn-logout" onclick="handleLogout()"> Đăng xuất</button>
+                </div>
+                
+                <div id="login-prompt-container">
+                    <button class="btn-primary" onclick="goToLogin()">Đăng nhập</button>
+                </div>
+            </div>
+                     
+           <section id="reading" class="tab-content">
+                <div class="card" style="max-width: 900px; padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="margin: 0;">Reading Comprehension</h2>
+                        <select id="reading-topic" class="dropdown" style="min-width: 200px;" onchange="loadReadingTest()">
+                            <option value="">-- Chọn đề Reading --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="progress-wrapper">
+                        <span id="progress-text" style="font-weight: 800; color: var(--text-muted); width: 60px;">0/10</span>
+                        <div class="progress-bar-bg">
+                            <div class="progress-fill" id="reading-progress-fill"></div>
+                        </div>
+                    </div>
+
+                    <div class="reading-passage" id="reading-passage-text" style="font-size: 16px; text-align: justify; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        Vui lòng chọn một đề bài phía trên để bắt đầu làm bài.
+                    </div>
+
+                    <div id="reading-questions-container" style="margin-top: 32px;">
+                        </div>
+
+                    <div class="action-row" style="margin-top: 40px; border-top: 2px dashed var(--border-color); padding-top: 24px; justify-content: center; flex-direction: column; gap: 16px;">
+                        <button id="btn-submit-reading" class="btn-primary" style="display: none; width: 100%; max-width: 400px; font-size: 18px; padding: 16px;" onclick="submitReading()">NỘP BÀI & CHẤM ĐIỂM</button>
+                        
+                        <div id="reading-score-display" style="display: none; text-align: center; background: #fffcf0; border: 2px solid #ffc800; padding: 20px; border-radius: 16px; width: 100%; max-width: 400px;">
+                            <p style="font-weight: 800; color: var(--text-main); font-size: 18px; margin-bottom: 8px;">Kết quả của bạn</p>
+                            <span id="reading-score" style="color: #ff9600; font-size: 40px; font-weight: 900;">0</span><span id="reading-total-score" style="color: var(--text-muted); font-size: 24px; font-weight: 700;">/10</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="writing" class="tab-content">
+                <div class="card">
+                    <h2>Writing Practice</h2>
+                    <p class="instruction">Luyện viết theo chủ đề (50 - 100 từ). AI sẽ chấm điểm và sửa lỗi chi tiết.</p>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="font-weight: 700; display: block; margin-bottom: 8px;">Chọn chủ đề viết:</label>
+                        <select id="writing-topic" class="dropdown">
+                            <option value="Describe your favorite hobby">1. Describe your favorite hobby (Miêu tả sở thích của bạn)</option>
+                            <option value="Write about a memorable trip">2. Write about a memorable trip (Kể về một chuyến đi đáng nhớ)</option>
+                            <option value="Discuss the benefits of reading books">3. Discuss the benefits of reading books (Lợi ích của việc đọc sách)</option>
+                            <option value="Describe your dream job">4. Describe your dream job (Công việc mơ ước của bạn)</option>
+                        </select>
+                    </div>
+
+                    <textarea id="writing-area" placeholder="Bắt đầu viết đoạn văn bằng tiếng Anh tại đây..."></textarea>
+                    
+                    <div class="action-row">
+                        <span id="word-count" style="font-weight: bold;">0 từ</span>
+                        <button id="btn-submit-writing" class="btn-primary" onclick="submitWriting()">Nộp bài chấm điểm</button>
+                    </div>
+
+                    <div id="writing-result" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 2px dashed var(--border-color);">
+                        <h3 style="color: var(--text-main); font-size: 24px; margin-bottom: 16px;">
+                            Điểm của bạn: <span id="writing-score" style="color: #ff9600; font-size: 32px; font-weight: 800;">100</span><span style="font-size: 20px; color: var(--text-muted);">/100</span>
+                        </h3>
+
+                        <div class="example-box" style="margin-bottom: 20px;">
+                            <p style="color: var(--text-main); font-weight: 800; margin-bottom: 8px;">✨ Bài viết đã được AI sửa lại cho tự nhiên:</p>
+                            <p id="writing-corrected" style="color: var(--text-main); font-weight: normal;"></p>
+                        </div>
+
+                        <h4 style="margin-bottom: 12px; color: var(--text-main);">Chi tiết các lỗi cần khắc phục:</h4>
+                        <div id="writing-errors">
+                            </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="grammar" class="tab-content">
+                <div class="card grammar-card">
+                    <h2>Grammar Hub</h2>
+                    <p class="instruction">Học lý thuyết và luyện tập 12 thì cơ bản trong tiếng Anh.</p>
+                    
+                    <div class="grammar-tabs">
+                        <button class="grammar-tab-btn active" onclick="switchGrammarSubTab('theory')">📚 Lý thuyết</button>
+                        <button class="grammar-tab-btn" onclick="switchGrammarSubTab('practice')">✏️ Luyện tập</button>
+                    </div>
+
+                    <div id="grammar-theory" class="grammar-sub-section active">
+                        <div class="grammar-layout">
+                            <ul class="tense-list" id="theory-tense-list">
+                                </ul>
+                            <div class="tense-content" id="theory-content">
+                                <h3 class="placeholder-text">👈 Chọn một thì ở danh sách bên trái để xem lý thuyết.</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="grammar-practice" class="grammar-sub-section">
+                        <div class="grammar-layout">
+                            <ul class="tense-list" id="practice-tense-list">
+                                </ul>
+                            <div class="tense-content" id="practice-content">
+                                <h3 class="placeholder-text">👈 Chọn một thì ở danh sách bên trái để bắt đầu luyện tập.</h3>
+                                <div id="practice-quiz-area" style="display: none;">
+                                    <h3 id="practice-tense-title" class="mb-3"></h3>
+                                    <p id="practice-question" class="question-text"></p>
+                                    <select id="practice-select" class="dropdown mt-3">
+                                        </select>
+                                    <br>
+                                    <button class="btn-primary mt-3" onclick="checkPracticeAnswer()">Kiểm tra đáp án</button>
+                                    <p id="practice-result" class="result-msg"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="translate" class="tab-content">
+                <div class="card">
+                    <h2>Translation</h2>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <select id="translate-direction" class="dropdown" onchange="updateTranslateLabels()">
+                            <option value="en-vi">🇺🇸 English ➔ 🇻🇳 Vietnamese</option>
+                            <option value="vi-en">🇻🇳 Vietnamese ➔ 🇺🇸 English</option>
+                        </select>
+                    </div>
+
+                    <div class="translate-grid">
+                        <div class="translate-box">
+                            <label id="source-label">English</label>
+                            <textarea id="source-text" placeholder="Nhập văn bản cần dịch..."></textarea>
+                        </div>
+                        <div class="translate-box">
+                            <label id="target-label">Vietnamese</label>
+                            <textarea id="target-text" readonly placeholder="Bản dịch sẽ xuất hiện ở đây..."></textarea>
+                        </div>
+                    </div>
+                    <button class="btn-primary mt-3" onclick="translateText()">Dịch ngay</button>
+                </div>
+            </section>
+
+            <section id="vocabulary" class="tab-content">
+                <div class="card" style="max-width: 800px; padding: 32px; position: relative;">
+                    <button id="vocab-back-btn" class="btn-outline" style="display: none; position: absolute; top: 24px; left: 24px; padding: 8px 16px; border-radius: 12px; font-size: 14px;" onclick="resetVocabUI()">⬅ Quay lại</button>
+
+                    <h2 id="vocab-title" style="text-align: center; margin-bottom: 24px;">Học Từ Vựng</h2>
+
+                    <div class="progress-wrapper" id="vocab-progress-wrapper" style="display: none; margin-bottom: 32px;">
+                        <span id="vocab-progress-text" style="font-weight: 800; color: var(--text-muted); width: 60px;">0/0</span>
+                        <div class="progress-bar-bg">
+                            <div class="progress-fill" id="vocab-progress-fill"></div>
+                        </div>
+                    </div>
+
+                    <div id="vocab-selection-view">
+                        <h3 style="color: var(--text-main); margin-bottom: 12px;">1. Chọn Trình độ</h3>
+                        <div class="level-grid">
+                            <button class="level-btn active" onclick="selectVocabLevel('A1')">A1</button>
+                            <button class="level-btn" onclick="selectVocabLevel('A2')">A2</button>
+                            <button class="level-btn" onclick="selectVocabLevel('B1')">B1</button>
+                            <button class="level-btn" onclick="selectVocabLevel('B2')">B2</button>
+                            <button class="level-btn" onclick="selectVocabLevel('C1')">C1</button>
+                            <button class="level-btn" onclick="selectVocabLevel('C2')">C2</button>
+                        </div>
+
+                        <h3 style="color: var(--text-main); margin: 24px 0 12px;">2. Chọn Chủ đề</h3>
+                        <div class="topic-grid">
+                            <button class="topic-pill" onclick="startVocabulary('Food')">🍔 Food</button>
+                            <button class="topic-pill" onclick="startVocabulary('Travel')">✈️ Travel</button>
+                            <button class="topic-pill" onclick="startVocabulary('Education')">🎓 Education</button>
+                            <button class="topic-pill" onclick="startVocabulary('Technology')">💻 Technology</button>
+                        </div>
+                    </div>
+
+                    <div id="vocab-flashcard-view" style="display: none; animation: fadeIn 0.4s ease;">
+                        <div class="flashcard">
+                            <div class="word-header">
+                                <h1 id="vocab-word">Apple</h1>
+                                <button class="audio-btn" onclick="playVocabAudio()">🔊</button>
+                            </div>
+                            <p id="vocab-meaning" class="meaning">Quả táo</p>
+                            <div class="example-box" style="margin-top: 24px;">
+                                <p id="vocab-example" style="font-style: italic; color: var(--text-main);">"I eat an apple."</p>
+                            </div>
+                        </div>
+                        <div class="action-row" style="justify-content: center; gap: 16px; margin-top: 32px;">
+                            <button class="btn-outline" style="width: 150px;" onclick="showVocabQuiz()">Ôn lại 🔄</button>
+                            <button class="btn-primary" style="width: 150px;" onclick="handleVocabResult(true)">Tôi đã biết ✔️</button>
+                        </div>
+                    </div>
+
+                    <div id="vocab-quiz-view" style="display: none; animation: fadeIn 0.4s ease;">
+                        <h3 style="text-align: center; margin-bottom: 24px; color: var(--text-main);">Nghĩa của từ <strong id="vocab-quiz-word" style="color: var(--primary-color);">Apple</strong> là gì?</h3>
+                        <div class="quiz-grid" id="vocab-quiz-options">
+                            </div>
+                    </div>
+
+                    <div id="vocab-srs-view" style="display: none; text-align: center; padding: 40px 20px; animation: fadeIn 0.3s ease;">
+                        <div id="srs-icon" style="font-size: 64px; margin-bottom: 16px;">🔥</div>
+                        <h2 id="srs-title" style="color: var(--primary-color); margin-bottom: 12px;">Tuyệt vời!</h2>
+                        <p id="srs-message" style="font-size: 18px; color: var(--text-main); font-weight: 600; margin-bottom: 32px;">Từ này đã được tăng cấp.</p>
+                        <button class="btn-primary" style="width: 200px;" onclick="nextVocabWord()">Tiếp tục ➔</button>
+                    </div>
+                    
+                    <div id="vocab-finish-view" style="display: none; text-align: center; padding: 40px 20px;">
+                        <h1 style="color: #ffc800; font-size: 48px; margin-bottom: 16px;">🏆</h1>
+                        <h2 style="color: var(--text-main); margin-bottom: 16px;">Hoàn thành bài học!</h2>
+                        <p style="color: var(--text-muted); font-size: 16px; margin-bottom: 32px;">Bạn đã ôn tập xong chủ đề này.</p>
+                        <button class="btn-primary" onclick="resetVocabUI()">Học chủ đề khác</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ai-chat" class="tab-content">
+                <div class="card" style="max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-color); padding-bottom: 16px; margin-bottom: 16px;">
+                        <h2 style="margin: 0;">🤖 Trợ giảng AI</h2>
+                        <button class="btn-outline" style="padding: 6px 16px; border-radius: 20px;" onclick="clearChat()">🗑️ Xóa lịch sử</button>
+                    </div>
+                    
+                    <div id="chat-box" class="chat-box">
+                        <div class="message ai-msg">
+                            <div class="msg-bubble">
+                                <strong>AI Tutor:</strong><br>
+                                Hello there! I am your AI English Tutor. You can practice English with me, ask me about grammar, or tell me about your day. How can I help you today? 😊
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Gõ tin nhắn bằng tiếng Anh hoặc tiếng Việt vào đây..." onkeypress="handleChatEnter(event)">
+                        <button class="btn-primary" id="btn-send-chat" onclick="sendChatMessage()">Gửi ➔</button>
+                    </div>
+                </div>          
+            </section>
+
+            <section id="admin-panel" class="tab-content">
+                    <div class="card">
+                        <aside class="sidebar">
+                            <div class="sidebar-header">
+                                <h2>🚀 AI Admin</h2>
+                            </div>
+                            <ul class="sidebar-menu">
+                                <!-- Data-module tương ứng với key trong JS -->
+                                <li class="menu-item active" data-module="vocabulary">📚 Vocabulary</li>
+                                <li class="menu-item" data-module="reading">📖 Reading</li>
+                                <li class="menu-item" data-module="writing">✍️ Writing</li>
+                                <li class="menu-item" data-module="grammar">🧩 Grammar</li>
+                            </ul>
+                        </aside>
+
+                        <!-- MAIN CONTENT -->
+                        <main class="main-content">
+                            <div class="content-header">
+                                <h2 id="module-title" style="color: var(--primary-color);">Quản Lý Vocabulary</h2>
+                                <button class="btn-primary" onclick="openModal()">+ Thêm Mới</button>
+                            </div>
+
+                            <div class="card">
+                                <table class="admin-table">
+                                    <thead id="table-head">
+                                        <!-- Sẽ render động qua JS -->
+                                    </thead>
+                                    <tbody id="table-body">
+                                        <!-- Sẽ render động qua JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </main>
+                    </div>
+
+                    <!-- MODAL FORM (Tái sử dụng cho mọi Module) -->
+                    <div class="modal-overlay" id="admin-modal">
+                        <div class="modal-content" style="max-height: 90vh; overflow-y: auto;">
+                            <h3 id="modal-title" style="margin-bottom: 20px;">Thêm Mới</h3>
+                            <form id="dynamic-form">
+                                <input type="hidden" id="item-id">
+                                
+                                <!-- Main Form Fields -->
+                                <div id="form-fields" class="form-grid">
+                                    <!-- Các ô input sẽ tự động sinh ra ở đây dựa vào module đang chọn -->
+                                </div>
+
+                                <!-- Sub Items Section (dành cho Reading, Grammar) -->
+                                <div id="admin-sub-items-section" style="display: none; margin-top: 24px; border-top: 2px solid var(--border-color); padding-top: 20px;">
+                                    <h4 style="color: var(--primary-color); margin-bottom: 16px; font-size: 16px;">➕ Quản Lý Câu Hỏi / Bài Luyện Tập</h4>
+                                    
+                                    <!-- Form thêm sub-item -->
+                                    <div class="form-grid" id="admin-sub-item-form" style="background: #f9f9f9; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                                        <!-- Fields sẽ sinh ra động -->
+                                    </div>
+                                    
+                                    <button type="button" class="btn-primary" onclick="addSubItem()" style="width: 100%; margin-bottom: 16px;">➕ Thêm Câu Hỏi</button>
+                                    
+                                    <!-- Danh sách sub-items -->
+                                    <div id="admin-sub-items-list">
+                                        <!-- Render động -->
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="modal-actions" style="margin-top: 24px;">
+                                    <button type="button" class="btn-outline" onclick="closeModal()">Hủy</button>
+                                    <button type="submit" class="btn-primary">💾 Lưu Dữ Liệu</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+            </section>
+
+
+        </main>
+    </div>
+    <script src="./js/script.js"></script>
+</body>
+</html>
