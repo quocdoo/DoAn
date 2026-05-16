@@ -283,35 +283,65 @@ async function submitWriting() {
     }
 }
 
+// Gọi API lấy danh sách chủ đề Writing cho người dùng chọn
+async function fetchWritingTopics() {
+    try {
+        const res = await fetch('http://127.0.0.1:5000/api/writing-topics');
+        const topics = await res.json();
+        
+        const dropdown = document.getElementById('writing-topic');
+        dropdown.innerHTML = '<option value="" disabled selected>-- Chọn chủ đề Writing --</option>';
+        
+        topics.forEach((t, index) => {
+            // Hiển thị: "1. Describe your favorite hobby (Miêu tả sở thích...)"
+            const descText = t.description ? ` (${t.description})` : '';
+            dropdown.innerHTML += `<option value="${t.title}">${index + 1}. ${t.title}${descText}</option>`;
+        });
+    } catch (error) {
+        console.error("Lỗi tải danh sách chủ đề Writing:", error);
+    }
+}
+
+// 🌟 Tự động gọi API lấy chủ đề Writing khi trang web vừa tải xong
+document.addEventListener('DOMContentLoaded', fetchWritingTopics);
+
 // Grammar Logic
 // --- GRAMMAR DATA: 12 TENSES ---
 let tensesData = []; 
 let currentPracticeAnswer = "";
 
-// Hàm gọi API từ Backend Python
+// Hàm gọi API từ Backend
 async function fetchGrammarData() {
-    try {
-        // Gọi tới server Flask đang chạy ở cổng 5000
+        try {
         const response = await fetch('http://127.0.0.1:5000/api/tenses'); 
         
         tensesData = await response.json();
         
         if(tensesData.error) {
-            console.error("Lỗi từ server Python:", tensesData.error);
+            console.error("Lỗi từ server:", tensesData.error);
             return;
         }
+
+        // 🌟 BẢN VÁ: Ép máy tính sắp xếp theo số thứ tự toán học
+        tensesData.sort((a, b) => {
+            // Trích xuất con số ở đầu chuỗi (Ví dụ: "12. Tương lai..." -> lấy ra số 12)
+            const numA = parseInt((a.name.match(/^\d+/) || [999])[0]);
+            const numB = parseInt((b.name.match(/^\d+/) || [999])[0]);
+            
+            return numA - numB; // Sắp xếp tăng dần
+        });
 
         // Khởi tạo giao diện sau khi có dữ liệu
         initGrammar(); 
     } catch (error) {
-        console.error("Không thể kết nối đến API Python:", error);
+        console.error("Không thể kết nối đến API:", error);
     }
 }
 
 // Gọi fetch dữ liệu khi trang vừa load xong
 document.addEventListener('DOMContentLoaded', fetchGrammarData);
 
-// ... (Giữ nguyên các hàm initGrammar, showTheory, showPractice, checkPracticeAnswer như trước đó) ...
+
 
 
 // Hàm chuyển đổi giữa Lý thuyết và Luyện tập
@@ -371,52 +401,217 @@ function showTheory(tense, listItem) {
     `;
 }
 
-// Hiển thị nội dung Luyện tập
+// --- GRAMMAR NÂNG CẤP: DỮ LIỆU & STATE ---
+let userGrammarProgress = JSON.parse(localStorage.getItem('englearn_grammar_progress')) || {};
+let currentPracticeTenseId = null;
+let currentPracticeLevel = null; 
+let currentQuestions = [];
+let currentQIndex = 0;
+let sessionStreak = 0;
+let sessionScore = 0;
+
+// 1. Khi click vào 1 Thì ở Sidebar, hiển thị Map Level
 function showPractice(tense, listItem) {
-    // Đổi màu menu đang chọn
     document.querySelectorAll('#practice-tense-list li').forEach(li => li.classList.remove('selected'));
     listItem.classList.add('selected');
 
-    // Hiển thị khu vực quiz và ẩn text placeholder
-    document.getElementById('practice-quiz-area').style.display = 'block';
-    document.querySelector('#practice-content .placeholder-text').style.display = 'none';
-    
-    // Reset kết quả
-    document.getElementById('practice-result').textContent = "";
-    
-    // Cập nhật câu hỏi
+    currentPracticeTenseId = tense.id;
     document.getElementById('practice-tense-title').textContent = `Luyện tập: ${tense.name}`;
-    document.getElementById('practice-question').textContent = tense.question;
     
-    // Cập nhật dropdown đáp án
-    const selectBox = document.getElementById('practice-select');
-    selectBox.innerHTML = `<option value="">-- Chọn đáp án --</option>`;
-    tense.options.forEach(opt => {
-        selectBox.innerHTML += `<option value="${opt}">${opt}</option>`;
-    });
+    // Khởi tạo progress cho thì này nếu chưa có
+    if (!userGrammarProgress[tense.id]) {
+        userGrammarProgress[tense.id] = { affirmative: false, negative: false, question: false, mixed: false };
+    }
 
-    // Lưu lại đáp án đúng
-    currentPracticeAnswer = tense.answer;
+    renderLevelSelector();
+
+    // Chuyển màn hình
+    document.getElementById('grammar-level-selector').style.display = 'block';
+    document.getElementById('grammar-quiz-interface').style.display = 'none';
 }
 
-// Kiểm tra đáp án luyện tập
-function checkPracticeAnswer() {
-    const userAnswer = document.getElementById('practice-select').value;
-    const resultElement = document.getElementById('practice-result');
+// 2. Vẽ 4 ô chọn dạng bài (Affirmative, Negative, Question, Mixed)
+function renderLevelSelector() {
+    const container = document.getElementById('levels-container');
+    const prog = userGrammarProgress[currentPracticeTenseId];
+    
+    // Điều kiện mở khóa Mixed: Phải xong 3 cái kia
+    const canUnlockMixed = prog.affirmative && prog.negative && prog.question;
 
-    if (userAnswer === "") {
-        resultElement.textContent = "Vui lòng chọn một đáp án.";
-        resultElement.className = "result-msg error-text";
+    container.innerHTML = `
+        <div class="level-card ${prog.affirmative ? 'completed' : 'unlocked'}" onclick="startGrammarLevel('affirmative')">
+            <div class="level-icon"><i class="fa-solid fa-plus"></i></div>
+            <div>
+                <h4 style="font-size: 18px; color: var(--text-main);">1. Khẳng định (Affirmative)</h4>
+                <p style="font-size: 14px; color: var(--text-muted);">${prog.affirmative ? 'Hoàn thành' : 'Chưa bắt đầu'}</p>
+            </div>
+        </div>
+
+        <div class="level-card ${prog.negative ? 'completed' : 'unlocked'}" onclick="startGrammarLevel('negative')">
+            <div class="level-icon"><i class="fa-solid fa-minus"></i></div>
+            <div>
+                <h4 style="font-size: 18px; color: var(--text-main);">2. Phủ định (Negative)</h4>
+                <p style="font-size: 14px; color: var(--text-muted);">${prog.negative ? 'Hoàn thành' : 'Chưa bắt đầu'}</p>
+            </div>
+        </div>
+
+        <div class="level-card ${prog.question ? 'completed' : 'unlocked'}" onclick="startGrammarLevel('question')">
+            <div class="level-icon"><i class="fa-solid fa-question"></i></div>
+            <div>
+                <h4 style="font-size: 18px; color: var(--text-main);">3. Nghi vấn (Question)</h4>
+                <p style="font-size: 14px; color: var(--text-muted);">${prog.question ? 'Hoàn thành' : 'Chưa bắt đầu'}</p>
+            </div>
+        </div>
+
+        <div class="level-card mixed-mode ${canUnlockMixed ? (prog.mixed ? 'completed' : 'unlocked') : 'locked'}" 
+             ${canUnlockMixed ? `onclick="startGrammarLevel('mixed')"` : ''}>
+            <div class="level-icon"><i class="fa-solid ${canUnlockMixed ? 'fa-crown' : 'fa-lock'}"></i></div>
+            <div>
+                <h4 style="font-size: 18px;">4. Tổng hợp (Mixed Boss)</h4>
+                <p style="font-size: 14px; opacity: 0.8;">${canUnlockMixed ? 'Đã mở khóa' : 'Hoàn thành 3 dạng trên để mở'}</p>
+            </div>
+        </div>
+    `;
+    container.style.display = 'flex';
+}
+
+// 3. Bắt đầu làm bài (SỬ DỤNG DỮ LIỆU TỪ DATABASE CHỨ KHÔNG DÙNG MOCK DATA NỮA)
+function startGrammarLevel(levelType) {
+    const tenseData = tensesData.find(t => t.id === currentPracticeTenseId);
+    
+    // Kiểm tra xem database có câu hỏi cho phần này chưa
+    if(!tenseData || !tenseData[levelType] || tenseData[levelType].length === 0) {
+        alert("Hiện tại chưa có câu hỏi cho phần này. Bạn hãy vào Admin thêm nhé!"); 
         return;
     }
 
-    if (userAnswer === currentPracticeAnswer) {
-        resultElement.textContent = "✅ Chính xác! Làm rất tốt.";
-        resultElement.className = "result-msg success-text";
+    currentPracticeLevel = levelType;
+    currentQuestions = tenseData[levelType];
+    currentQIndex = 0;
+    sessionStreak = 0;
+    sessionScore = 0;
+
+    // Đổi Title
+    const titleMap = { affirmative: "DẠNG KHẲNG ĐỊNH (+)", negative: "DẠNG PHỦ ĐỊNH (-)", question: "DẠNG NGHI VẤN (?)", mixed: "MIXED MODE (BOSS)"};
+    document.getElementById('quiz-level-name').textContent = titleMap[levelType];
+
+    document.getElementById('grammar-level-selector').style.display = 'none';
+    document.getElementById('grammar-quiz-interface').style.display = 'block';
+    document.getElementById('grammar-feedback-banner').style.display = 'none';
+
+    renderGrammarQuestion();
+}
+
+// 4. Load 1 câu hỏi lên màn hình
+function renderGrammarQuestion() {
+    const q = currentQuestions[currentQIndex];
+    document.getElementById('quiz-question-text').textContent = q.q;
+    
+    // Trộn đáp án ngẫu nhiên
+    const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+    
+    const optionsContainer = document.getElementById('quiz-options-container');
+    optionsContainer.innerHTML = '';
+    
+    shuffledOptions.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'grammar-opt-btn';
+        btn.textContent = opt;
+        btn.onclick = () => selectGrammarOption(btn);
+        optionsContainer.appendChild(btn);
+    });
+
+    // Update Progress
+    const progress = (currentQIndex / currentQuestions.length) * 100;
+    document.getElementById('grammar-progress-fill').style.width = `${progress}%`;
+    document.getElementById('grammar-streak').textContent = sessionStreak;
+
+    // Reset nút Check
+    const checkBtn = document.getElementById('btn-check-grammar');
+    checkBtn.style.opacity = '0.5';
+    checkBtn.style.pointerEvents = 'none';
+    
+    // Ẩn banner
+    document.getElementById('grammar-feedback-banner').style.display = 'none';
+}
+
+// 5. User chọn đáp án
+function selectGrammarOption(btnSelected) {
+    // Bỏ chọn nút cũ
+    document.querySelectorAll('.grammar-opt-btn').forEach(btn => btn.classList.remove('selected'));
+    // Chọn nút mới
+    btnSelected.classList.add('selected');
+    
+    // Mở khóa nút Kiểm Tra
+    const checkBtn = document.getElementById('btn-check-grammar');
+    checkBtn.style.opacity = '1';
+    checkBtn.style.pointerEvents = 'auto';
+}
+
+// 6. Chấm điểm & Hiện giải thích
+function checkGrammarAnswer() {
+    const selectedBtn = document.querySelector('.grammar-opt-btn.selected');
+    if (!selectedBtn) return;
+    
+    const userAnswer = selectedBtn.textContent;
+    const currentQ = currentQuestions[currentQIndex];
+    const isCorrect = userAnswer === currentQ.correct;
+
+    // Khóa bấm thêm
+    document.querySelectorAll('.grammar-opt-btn').forEach(btn => btn.style.pointerEvents = 'none');
+    document.getElementById('btn-check-grammar').style.display = 'none';
+
+    const banner = document.getElementById('grammar-feedback-banner');
+    const title = document.getElementById('feedback-title');
+    const exp = document.getElementById('feedback-explanation');
+    const nextBtn = document.getElementById('btn-next-grammar');
+
+    if (isCorrect) {
+        sessionStreak++;
+        sessionScore++;
+        banner.className = 'feedback-banner correct';
+        title.innerHTML = '<i class="fa-solid fa-circle-check"></i> Chính xác!';
+        exp.textContent = currentQ.exp;
+        nextBtn.textContent = 'TIẾP TỤC';
     } else {
-        resultElement.textContent = `❌ Sai rồi. Bạn hãy làm lại đọc lại và phân tích lại nhé ^^ `;
-        resultElement.className = "result-msg error-text";
+        sessionStreak = 0;
+        banner.className = 'feedback-banner wrong';
+        title.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Sai mất rồi!';
+        exp.textContent = `Đáp án đúng là "${currentQ.correct}". ${currentQ.exp}`;
+        nextBtn.textContent = 'ĐÃ HIỂU';
     }
+
+    document.getElementById('grammar-streak').textContent = sessionStreak;
+    banner.style.display = 'block';
+}
+
+// 7. Câu tiếp theo hoặc Kết thúc
+function nextGrammarQuestion() {
+    document.getElementById('btn-check-grammar').style.display = 'inline-block';
+    currentQIndex++;
+    
+    if (currentQIndex < currentQuestions.length) {
+        renderGrammarQuestion();
+    } else {
+        finishGrammarLevel();
+    }
+}
+
+// 8. Kết thúc vòng lặp
+function finishGrammarLevel() {
+    // Đánh dấu hoàn thành
+    userGrammarProgress[currentPracticeTenseId][currentPracticeLevel] = true;
+    localStorage.setItem('englearn_grammar_progress', JSON.stringify(userGrammarProgress));
+
+    alert(`🎉 Chúc mừng! Bạn đã hoàn thành phần thi với ${sessionScore}/${currentQuestions.length} câu đúng.`);
+    quitGrammarLevel();
+}
+
+// Quay lại màn hình chọn Level
+function quitGrammarLevel() {
+    renderLevelSelector();
+    document.getElementById('grammar-quiz-interface').style.display = 'none';
+    document.getElementById('grammar-level-selector').style.display = 'block';
 }
 
 // Khởi chạy script grammar sau khi HTML load
@@ -866,6 +1061,7 @@ const moduleConfig = {
     },
     writing: {
         title: "Writing Topics",
+        getEndpoint: "/api/writing-topics", // 🌟 Dùng API public để lấy danh sách
         apiEndpoint: "/api/admin/writing",
         tableHeaders: ["ID", "Chủ đề", "Hành động"],
         dataKeys: ["id", "title"],
@@ -971,18 +1167,27 @@ function renderTable() {
     const data = adminData[currentModule] || [];
     const tbody = document.getElementById('table-body');
     
-    tbody.innerHTML = data.map(item => {
+    // 🌟 THÊM tham số "index" vào vòng lặp map
+    tbody.innerHTML = data.map((item, index) => {
         let rowHtml = `<tr>`;
+        
         // Lấy đúng dữ liệu theo DataKeys đã cấu hình
         config.dataKeys.forEach(key => {
             let displayValue = item[key] || '';
-            // Cắt ngắn nếu quá dài
-            if (typeof displayValue === 'string' && displayValue.length > 50) {
+            
+            // 🌟 BẢN VÁ: Nếu đang in cột "id", tự động chuyển thành Số Thứ Tự (index + 1)
+            if (key === 'id') {
+                displayValue = index + 1;
+            } 
+            // Cắt ngắn nếu nội dung quá dài
+            else if (typeof displayValue === 'string' && displayValue.length > 50) {
                 displayValue = displayValue.substring(0, 50) + '...';
             }
+            
             rowHtml += `<td>${displayValue}</td>`;
         });
-        // Thêm cột Hành động
+        
+        // Thêm cột Hành động (Nút Sửa/Xóa vẫn ngầm sử dụng item.id thật của Database)
         rowHtml += `
             <td style="display: flex; gap: 8px;">
                 <button class="btn-edit" onclick="editItem(${item.id})">✏️ Sửa</button>
@@ -996,7 +1201,6 @@ function renderTable() {
         tbody.innerHTML = `<tr><td colspan="${config.tableHeaders.length}" style="text-align:center; padding: 32px;">Chưa có dữ liệu</td></tr>`;
     }
 }
-
 // --- 5. MODAL & FORM BUILDER ---
 
 function openModal(editId = null) {

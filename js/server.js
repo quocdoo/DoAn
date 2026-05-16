@@ -63,25 +63,42 @@ app.get('/api/tenses', async (req, res) => {
     let connection;
     try {
         connection = await mysql.createConnection(dbConfig);
-        const [rows] = await connection.execute('SELECT * FROM grammar_tenses');
+        
+        // Lấy 12 thì và sắp xếp theo số đằng trước
+        const [tenses] = await connection.execute('SELECT * FROM grammar_tenses ORDER BY CAST(REGEXP_SUBSTR(name, "^[0-9]+") AS UNSIGNED)');
+        
+        // Lấy toàn bộ câu hỏi từ bảng grammar_questions mới tạo
+        const [questions] = await connection.execute('SELECT * FROM grammar_questions');
 
-        const tensesData = rows.map(row => {
-            let parsedOptions = row.options;
-            if (typeof parsedOptions === 'string') {
-                try { parsedOptions = JSON.parse(parsedOptions); } 
-                catch (e) { parsedOptions = []; }
-            }
+        // Gộp data lại chuẩn định dạng cho Frontend (Chia làm Khẳng định, Phủ định, Nghi vấn)
+        const tensesData = tenses.map(tense => {
+            // Lọc ra các câu hỏi của THÌ HIỆN TẠI
+            const tQs = questions.filter(q => q.tense_id === tense.id);
+            
+            // Hàm Helper để format câu hỏi
+            const formatQ = (q) => {
+                let parsedOptions = q.options;
+                if (typeof parsedOptions === 'string') {
+                    try { parsedOptions = JSON.parse(parsedOptions); } catch(e) { parsedOptions = []; }
+                }
+                return { q: q.question_text, options: parsedOptions, correct: q.correct_answer, exp: q.explanation || '' };
+            };
+
             return {
-                id: row.id,
-                name: row.name,
-                usage: row.usage_desc,
-                formulas: row.formulas,
-                examples: row.examples,
-                question: row.question,
-                options: parsedOptions,
-                answer: row.answer
+                id: tense.id,
+                name: tense.name,
+                usage: tense.usage_desc,
+                formulas: tense.formulas,
+                examples: tense.examples,
+                // Phân loại mảng câu hỏi
+                affirmative: tQs.filter(q => q.category === 'affirmative').map(formatQ),
+                negative: tQs.filter(q => q.category === 'negative').map(formatQ),
+                question: tQs.filter(q => q.category === 'question').map(formatQ),
+                // Trộn cả 3 dạng thành Boss Mixed Mode
+                mixed: tQs.map(formatQ).sort(() => Math.random() - 0.5) 
             };
         });
+
         res.json(tensesData);
     } catch (error) {
         console.error('Lỗi Database:', error);
@@ -552,7 +569,6 @@ app.put('/api/admin/reading/:id', requireAdmin, async (req, res) => {
 
         connection = await mysql.createConnection(dbConfig);
         
-        // 🌟 ĐÃ FIX 2: Xóa cột 'level=?' khỏi câu lệnh SQL UPDATE
         await connection.execute(
             'UPDATE reading_passages SET title=?, content=? WHERE id=?',
             [title, content, id]
@@ -694,21 +710,82 @@ app.delete('/api/admin/grammar/:id', requireAdmin, async (req, res) => {
 // ==========================================
 
 // Writing
+// ==========================================
+//        API WRITING ADMIN & USER
+// ==========================================
+
+// --- API CHO NGƯỜI DÙNG BÊN NGOÀI (Lấy danh sách chủ đề) ---
+app.get('/api/writing-topics', async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        const [rows] = await connection.execute('SELECT * FROM writing_topics ORDER BY id ASC');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// --- API CHO ADMIN (CRUD) ---
+// 1. LẤY danh sách
 app.get('/api/admin/writing', requireAdmin, async (req, res) => {
-    res.json([{ id: 1, title: "Placeholder - Cần thêm database" }]);
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        const [rows] = await connection.execute('SELECT * FROM writing_topics ORDER BY id DESC');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
 });
 
+// 2. THÊM mới
 app.post('/api/admin/writing', requireAdmin, async (req, res) => {
-    res.json({ message: "API Writing chưa được cài đặt" });
+    let connection;
+    try {
+        const { title, description } = req.body;
+        if (!title) return res.status(400).json({ error: "Thiếu tiêu đề" });
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute('INSERT INTO writing_topics (title, description) VALUES (?, ?)', [title, description || '']);
+        res.json({ message: "Thêm chủ đề thành công!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
 });
 
-// Translate  
-app.get('/api/admin/translate', requireAdmin, async (req, res) => {
-    res.json([{ id: 1, english_text: "Placeholder", vietnamese_text: "Giữ chỗ" }]);
+// 3. SỬA
+app.put('/api/admin/writing/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { title, description } = req.body;
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute('UPDATE writing_topics SET title=?, description=? WHERE id=?', [title, description || '', req.params.id]);
+        res.json({ message: "Cập nhật thành công!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
 });
 
-app.post('/api/admin/translate', requireAdmin, async (req, res) => {
-    res.json({ message: "API Translate chưa được cài đặt" });
+// 4. XÓA
+app.delete('/api/admin/writing/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute('DELETE FROM writing_topics WHERE id=?', [req.params.id]);
+        res.json({ message: "Đã xóa chủ đề!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
 });
 
 // Khởi chạy server

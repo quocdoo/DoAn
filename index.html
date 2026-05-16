@@ -86,12 +86,9 @@
 
                     <div style="margin-bottom: 20px;">
                         <label style="font-weight: 700; display: block; margin-bottom: 8px;">Chọn chủ đề viết:</label>
-                        <select id="writing-topic" class="dropdown">
-                            <option value="Describe your favorite hobby">1. Describe your favorite hobby (Miêu tả sở thích của bạn)</option>
-                            <option value="Write about a memorable trip">2. Write about a memorable trip (Kể về một chuyến đi đáng nhớ)</option>
-                            <option value="Discuss the benefits of reading books">3. Discuss the benefits of reading books (Lợi ích của việc đọc sách)</option>
-                            <option value="Describe your dream job">4. Describe your dream job (Công việc mơ ước của bạn)</option>
-                        </select>
+                            <select id="writing-topic" class="dropdown">
+                                <option value="" disabled selected>-- Chọn chủ đề Writing --</option>
+                            </select>
                     </div>
 
                     <textarea id="writing-area" placeholder="Bắt đầu viết đoạn văn bằng tiếng Anh tại đây..."></textarea>
@@ -143,17 +140,47 @@
                             <ul class="tense-list" id="practice-tense-list">
                                 </ul>
                             <div class="tense-content" id="practice-content">
-                                <h3 class="placeholder-text">👈 Chọn một thì ở danh sách bên trái để bắt đầu luyện tập.</h3>
-                                <div id="practice-quiz-area" style="display: none;">
-                                    <h3 id="practice-tense-title" class="mb-3"></h3>
-                                    <p id="practice-question" class="question-text"></p>
-                                    <select id="practice-select" class="dropdown mt-3">
-                                        </select>
-                                    <br>
-                                    <button class="btn-primary mt-3" onclick="checkPracticeAnswer()">Kiểm tra đáp án</button>
-                                    <p id="practice-result" class="result-msg"></p>
+                                <div id="grammar-level-selector">
+                                    <h3 id="practice-tense-title" style="margin-bottom: 24px;">👈 Chọn một thì bên trái để bắt đầu.</h3>
+                                    
+                                    <div class="grammar-levels-grid" id="levels-container" style="display: none;">
+                                        </div>
                                 </div>
-                            </div>
+
+                                <div id="grammar-quiz-interface" style="display: none; position: relative; min-height: 400px; padding-bottom: 80px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                                        <button class="btn-outline" style="padding: 8px 16px; margin: 0;" onclick="quitGrammarLevel()">✖ Thoát</button>
+                                        <div class="progress-bar-bg" style="flex: 1; margin: 0 20px;">
+                                            <div class="progress-fill" id="grammar-progress-fill" style="width: 0%;"></div>
+                                        </div>
+                                        <div style="color: #ff9600; font-weight: 800; font-size: 18px;">
+                                            🔥 <span id="grammar-streak">0</span>
+                                        </div>
+                                    </div>
+
+                                    <h3 id="quiz-level-name" style="color: var(--text-muted); font-size: 16px; text-transform: uppercase; margin-bottom: 8px;">DẠNG KHẲNG ĐỊNH (+)</h3>
+                                    <p id="quiz-question-text" style="font-size: 22px; font-weight: 800; color: var(--text-main); margin-bottom: 32px; line-height: 1.5;"></p>
+
+                                    <div class="quiz-options-grid" id="quiz-options-container">
+                                        </div>
+
+                                    <div style="text-align: right; margin-top: 32px;">
+                                        <button id="btn-check-grammar" class="btn-primary" style="width: 100%; max-width: 200px; opacity: 0.5; pointer-events: none;" onclick="checkGrammarAnswer()">KIỂM TRA</button>
+                                    </div>
+
+                                    <div id="grammar-feedback-banner" class="feedback-banner">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <h2 id="feedback-title" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                                                    <i class="fa-solid fa-circle-check"></i> Tuyệt vời!
+                                                </h2>
+                                                <p id="feedback-explanation" style="font-size: 15px; font-weight: 600; opacity: 0.9;"></p>
+                                            </div>
+                                            <button id="btn-next-grammar" class="btn-primary" style="background: white; color: var(--primary-color);" onclick="nextGrammarQuestion()">TIẾP TỤC</button>
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
                         </div>
                     </div>
                 </div>
