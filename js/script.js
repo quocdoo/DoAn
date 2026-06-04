@@ -23,6 +23,15 @@ function switchTab(tabId) {
     
     // Tìm thẻ li nào có chứa chữ cái gọi hàm để tô màu
     event.currentTarget.classList.add('active');
+    if (tabId === 'writing') {
+        if (typeof fetchWritingTopics === 'function') fetchWritingTopics();
+    }
+    if (tabId === 'reading') {
+        if (typeof fetchReadingList === 'function') fetchReadingList();
+    }
+    if (tabId === 'grammar') {
+        if (typeof fetchGrammarData === 'function') fetchGrammarData();
+    }
 }
 
 // --- READING LOGIC ---
@@ -363,6 +372,9 @@ function initGrammar() {
     const theoryList = document.getElementById('theory-tense-list');
     const practiceList = document.getElementById('practice-tense-list');
 
+    if (theoryList) theoryList.innerHTML = '';
+    if (practiceList) practiceList.innerHTML = '';
+
     tensesData.forEach(tense => {
         // Render cho Lý thuyết
         const liTheory = document.createElement('li');
@@ -402,13 +414,25 @@ function showTheory(tense, listItem) {
 }
 
 // --- GRAMMAR NÂNG CẤP: DỮ LIỆU & STATE ---
-let userGrammarProgress = JSON.parse(localStorage.getItem('englearn_grammar_progress')) || {};
+let userGrammarProgress = {}; 
 let currentPracticeTenseId = null;
 let currentPracticeLevel = null; 
 let currentQuestions = [];
 let currentQIndex = 0;
 let sessionStreak = 0;
 let sessionScore = 0;
+
+// 🌟 HÀM MỚI: Tải tiến độ theo Email
+function loadUserGrammarProgress() {
+    const storageKey = 'grammar_progress_' + currentUserEmail;
+    userGrammarProgress = JSON.parse(localStorage.getItem(storageKey)) || {};
+}
+
+// 🌟 HÀM MỚI: Lưu tiến độ theo Email
+function saveUserGrammarProgress() {
+    const storageKey = 'grammar_progress_' + currentUserEmail;
+    localStorage.setItem(storageKey, JSON.stringify(userGrammarProgress));
+}
 
 // 1. Khi click vào 1 Thì ở Sidebar, hiển thị Map Level
 function showPractice(tense, listItem) {
@@ -418,6 +442,9 @@ function showPractice(tense, listItem) {
     currentPracticeTenseId = tense.id;
     document.getElementById('practice-tense-title').textContent = `Luyện tập: ${tense.name}`;
     
+    // 🌟 BẢN VÁ: Tải file lưu cá nhân của user đang đăng nhập
+    loadUserGrammarProgress();
+
     // Khởi tạo progress cho thì này nếu chưa có
     if (!userGrammarProgress[tense.id]) {
         userGrammarProgress[tense.id] = { affirmative: false, negative: false, question: false, mixed: false };
@@ -601,7 +628,8 @@ function nextGrammarQuestion() {
 function finishGrammarLevel() {
     // Đánh dấu hoàn thành
     userGrammarProgress[currentPracticeTenseId][currentPracticeLevel] = true;
-    localStorage.setItem('englearn_grammar_progress', JSON.stringify(userGrammarProgress));
+    
+    saveUserGrammarProgress();
 
     alert(`🎉 Chúc mừng! Bạn đã hoàn thành phần thi với ${sessionScore}/${currentQuestions.length} câu đúng.`);
     quitGrammarLevel();
@@ -676,6 +704,7 @@ let currentLevel = 'A1';
 let vocabList = [];
 let currentVocabIndex = 0;
 let userSrsData = {}; // Giả lập lưu trữ tiến độ từ vựng { wordId: level }
+let currentUserEmail = "guest";
 
 function selectVocabLevel(level) {
     currentLevel = level;
@@ -957,6 +986,9 @@ async function checkAuthStatus() {
         const data = await response.json();
         
         if (data.isLoggedIn) {
+            // 🌟 BẢN VÁ: Gắn email người dùng vào biến để các chức năng khác sử dụng
+            currentUserEmail = data.user.email; 
+            
             document.getElementById('user-info-container').style.display = 'flex';
             document.getElementById('login-prompt-container').style.display = 'none';
             document.getElementById('header-user-name').textContent = `👤 ${data.user.email}`;
@@ -964,7 +996,8 @@ async function checkAuthStatus() {
             // NẾU LÀ ADMIN THÌ HIỆN NÚT ADMIN PANEL
             if (data.user.role === 'admin') {
                 document.getElementById('nav-admin-btn').style.display = 'block';
-                loadAdminData(); // Tự động tải danh sách từ vựng cho admin
+                // Chỉ gọi loadAdminData nếu element table-body tồn tại (tránh lỗi khi ở trang chủ không có bảng admin)
+                if(document.getElementById('table-body')) loadAdminData(); 
             }
         } else {
              document.getElementById('user-info-container').style.display = 'none';
@@ -1039,25 +1072,33 @@ const moduleConfig = {
             { id: "correct_answer", label: "Đáp án đúng", type: "text", required: true }
         ]
     },
-    grammar: {
-        title: "Grammar Rules",
-        getEndpoint: "/api/tenses",           // 🌟 Dùng API public để lấy danh sách
-        apiEndpoint: "/api/admin/grammar",
-        tableHeaders: ["ID", "Tên Thì", "Mô tả", "Hành động"],
-        dataKeys: ["id", "name", "usage"],    // 🌟 Sửa usage_desc thành usage
+    grammar_theory: {
+        title: "Lý thuyết Grammar",
+        apiEndpoint: "/api/admin/grammar_theory",
+        tableHeaders: ["STT", "Tên Thì", "Mô tả", "Hành động"],
+        dataKeys: ["id", "name", "usage_desc"],
         formFields: [
-            { id: "name", label: "Tên Thì/Cấu trúc (vd: Present Simple)", type: "text", required: true },
-            { id: "usage", label: "Mô tả cách sử dụng", type: "textarea", required: true }, // 🌟 Sửa id thành usage
+            { id: "name", label: "Tên Thì/Cấu trúc", type: "text", required: true },
+            { id: "usage_desc", label: "Mô tả cách sử dụng", type: "textarea", required: true },
             { id: "formulas", label: "Công thức (vd: S + V)", type: "textarea", required: true },
             { id: "examples", label: "Ví dụ minh họa", type: "textarea", required: true }
         ],
-        hasSubItems: true,
-        subItemTitle: "Bài Luyện Tập",
-        subItemFields: [
-            { id: "question", label: "Câu hỏi luyện tập", type: "textarea", required: true },
-            { id: "options", label: "Đáp án (cách nhau bằng dấu |)", type: "textarea", required: true },
-            { id: "answer", label: "Đáp án đúng", type: "text", required: true }
-        ]
+        hasSubItems: false
+    },
+    grammar_practice: {
+        title: "Bài tập Grammar",
+        apiEndpoint: "/api/admin/grammar_practice",
+        tableHeaders: ["STT", "Thuộc Thì", "Dạng", "Câu hỏi", "Hành động"],
+        dataKeys: ["id", "tense_name", "category", "question_text"],
+        formFields: [
+            { id: "tense_id", label: "Thuộc Thì nào?", type: "select", required: true, options: [] }, // Tự động load bằng JS
+            { id: "category", label: "Dạng bài", type: "select", required: true, options: ["affirmative", "negative", "question"] },
+            { id: "question_text", label: "Nội dung câu hỏi", type: "textarea", required: true },
+            { id: "options", label: "4 Đáp án (cách nhau dấu phẩy)", type: "text", required: true },
+            { id: "correct_answer", label: "Đáp án đúng", type: "text", required: true },
+            { id: "explanation", label: "Giải thích đáp án", type: "textarea", required: false }
+        ],
+        hasSubItems: false
     },
     writing: {
         title: "Writing Topics",
@@ -1068,6 +1109,16 @@ const moduleConfig = {
         formFields: [
             { id: "title", label: "Chủ đề viết", type: "text", required: true },
             { id: "description", label: "Hướng dẫn chi tiết", type: "textarea", required: false }
+        ]
+    },
+    users: {
+        title: "Thành Viên Hệ Thống",
+        apiEndpoint: "/api/admin/users",
+        tableHeaders: ["STT", "Email tài khoản", "Quyền hạn", "Hành động"],
+        dataKeys: ["id", "email", "role"],
+        formFields: [
+            { id: "email", label: "Địa chỉ Email", type: "text", required: true },
+            { id: "role", label: "Phân quyền tài khoản", type: "select", required: true, options: ["student", "admin"] }
         ]
     },
 };
@@ -1190,8 +1241,8 @@ function renderTable() {
         // Thêm cột Hành động (Nút Sửa/Xóa vẫn ngầm sử dụng item.id thật của Database)
         rowHtml += `
             <td style="display: flex; gap: 8px;">
-                <button class="btn-edit" onclick="editItem(${item.id})">✏️ Sửa</button>
-                <button class="btn-delete" onclick="deleteItem(${item.id})">🗑️ Xóa</button>
+                <button class="btn-edit" onclick="editItem('${item.id}')">✏️ Sửa</button>
+                <button class="btn-delete" onclick="deleteItem('${item.id}')">🗑️ Xóa</button>
             </td>
         </tr>`;
         return rowHtml;
@@ -1240,31 +1291,56 @@ function openModal(editId = null) {
     }).join('');
 
     // Nếu là Edit, đổ dữ liệu cũ vào form
+ // Đổ dữ liệu cũ vào form nếu đang Sửa
     if (editId) {
-        const item = (adminData[currentModule] || []).find(i => i.id === editId);
+        const item = (adminData[currentModule] || []).find(i => i.id == editId);
         if (item) {
             config.formFields.forEach(field => {
                 const input = document.getElementById(`field-${field.id}`);
                 if (input) {
-                    input.value = item[field.id] || '';
+                    // 🌟 Xử lý hiển thị dấu phẩy cho mục Đáp án 
+                    if (field.id === 'options' && item[field.id]) {
+                        try {
+                            const arr = typeof item[field.id] === 'string' ? JSON.parse(item[field.id]) : item[field.id];
+                            input.value = arr.join(', ');
+                        } catch(e) { input.value = item[field.id]; }
+                    } else {
+                        input.value = item[field.id] || '';
+                    }
                 }
             });
-            
-            // Nếu module này có sub-items (Reading, Grammar), load chúng vào
-            if (config.hasSubItems) {
-                // 🌟 FIX: Fetch chi tiết bài đọc kèm câu hỏi từ API public
-                loadReadingDetails(editId);
-            }
         }
     } else {
         editingSubItems = [];
     }
+    
+    // 🌟 BẢN VÁ: Tự động tải Danh sách Tên 12 Thì vào dropdown
+    if (currentModule === 'grammar_practice') {
+        fetch('http://127.0.0.1:5000/api/tenses')
+            .then(res => res.json())
+            .then(tenses => {
+                const select = document.getElementById('field-tense_id');
+                if (select) {
+                    select.innerHTML = '<option value="">-- Chọn Thì --</option>' + 
+                        tenses.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+                    if (editId) {
+                        const item = adminData.grammar_practice.find(i => i.id == editId);
+                        if (item) select.value = item.tense_id;
+                    }
+                }
+            });
+    }
+
     
     // Setup form cho sub-items nếu cần
     if (config.hasSubItems) {
         setupSubItemForm();
         document.getElementById('admin-sub-items-section').style.display = 'block';
     } else {
+        // 🌟 BẢN VÁ LỖI NÚT LƯU BỊ CHẾT: Xóa sạch form cũ đang bị tàng hình
+        const subItemForm = document.getElementById('admin-sub-item-form');
+        if (subItemForm) subItemForm.innerHTML = ''; 
+        
         document.getElementById('admin-sub-items-section').style.display = 'none';
     }
 
@@ -1300,6 +1376,29 @@ async function loadReadingDetails(passageId) {
     } catch (error) {
         console.error('Lỗi tải chi tiết Reading:', error);
     }
+}
+
+// 🌟 HÀM MỚI: Tải danh sách câu hỏi Grammar lên Form Admin
+function loadGrammarQuestions(item) {
+    editingSubItems = [];
+    const categories = ['affirmative', 'negative', 'question'];
+    
+    categories.forEach(cat => {
+        if (item[cat] && Array.isArray(item[cat])) {
+            item[cat].forEach(q => {
+                editingSubItems.push({
+                    category: cat,
+                    question_text: q.q,
+                    // Chuyển mảng đáp án thành chuỗi cách nhau bằng dấu phẩy
+                    options: Array.isArray(q.options) ? q.options.join(', ') : q.options,
+                    correct_answer: q.correct,
+                    explanation: q.exp || ''
+                });
+            });
+        }
+    });
+    
+    renderSubItemsList();
 }
 
 // Setup form cho sub-items
@@ -1482,13 +1581,13 @@ function handleFormSubmit(e) {
     // Gom dữ liệu từ các ô input
     const formData = {};
     config.formFields.forEach(field => {
-    let value = document.getElementById(`field-${field.id}`).value;
-    if (field.id === 'options' && value) {
-        value = value.split(',').map(opt => opt.trim());
-    }
-    
-    formData[field.id] = value;
-});
+        let value = document.getElementById(`field-${field.id}`).value;
+        if (field.id === 'options' && value) {
+            value = value.split(',').map(opt => opt.trim());
+        }
+        
+        formData[field.id] = value;
+    });
     
     // Xử lý đặc biệt cho options (chuyển string thành array)
     if (config.hasSubItems && editingSubItems.length > 0) {
@@ -1496,8 +1595,7 @@ function handleFormSubmit(e) {
     }
 
     if (editId) {
-        // Cập nhật (Update)
-        updateItemAPI(parseInt(editId), formData);
+        updateItemAPI(editId, formData);
     } else {
         // Thêm mới (Create)
         createItemAPI(formData);
@@ -1523,6 +1621,9 @@ async function createItemAPI(data) {
         alert('✅ Thêm mới thành công!');
         closeModal();
         loadAdminData(currentModule);
+        if (currentModule === 'writing') fetchWritingTopics();
+        if (currentModule === 'reading') fetchReadingList();
+        if (currentModule === 'grammar_theory' || currentModule === 'grammar_practice') fetchGrammarData();
     } catch (error) {
         console.error('Lỗi:', error);
         alert('❌ Không thể kết nối đến máy chủ');
@@ -1548,6 +1649,9 @@ async function updateItemAPI(id, data) {
         alert('✅ Cập nhật thành công!');
         closeModal();
         loadAdminData(currentModule);
+        if (currentModule === 'writing') fetchWritingTopics();
+        if (currentModule === 'reading') fetchReadingList();
+        if (currentModule === 'grammar_theory' || currentModule === 'grammar_practice') fetchGrammarData();
     } catch (error) {
         console.error('Lỗi:', error);
         alert('❌ Không thể kết nối đến máy chủ');

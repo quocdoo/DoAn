@@ -626,83 +626,100 @@ app.delete('/api/admin/reading/:id', requireAdmin, async (req, res) => {
 });
 
 // ==========================================
-//        API GRAMMAR ADMIN
+// 1. API QUẢN LÝ LÝ THUYẾT GRAMMAR
 // ==========================================
-
-// 1. LẤY danh sách Grammar
-app.get('/api/admin/grammar', requireAdmin, async (req, res) => {
+app.get('/api/admin/grammar_theory', requireAdmin, async (req, res) => {
     let connection;
     try {
         connection = await mysql.createConnection(dbConfig);
-        const [rows] = await connection.execute('SELECT id, name, usage_desc FROM grammar_tenses ORDER BY id DESC');
+        const [rows] = await connection.execute('SELECT * FROM grammar_tenses ORDER BY id ASC');
         res.json(rows);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    } finally {
-        if (connection) await connection.end();
+    } catch (error) { 
+        res.status(500).json({ error: error.message }); 
+    } finally { 
+        if (connection) await connection.end(); 
     }
 });
-
-// 2. THÊM ngữ pháp mới
-app.post('/api/admin/grammar', requireAdmin, async (req, res) => {
+app.post('/api/admin/grammar_theory', requireAdmin, async (req, res) => {
     let connection;
     try {
-        const { name, usage_desc, formulas, examples, questions } = req.body;
-        
-        if (!name || !usage_desc) {
-            return res.status(400).json({ error: "Thiếu tên hoặc mô tả" });
-        }
-
-        connection = await mysql.createConnection(dbConfig);
-        
-        const [result] = await connection.execute(
-            'INSERT INTO grammar_tenses (name, usage_desc, formulas, examples) VALUES (?, ?, ?, ?)',
-            [name, usage_desc, formulas, examples]
-        );
-        
-        res.json({ message: "Đã thêm ngữ pháp thành công!", id: result.insertId });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    } finally {
-        if (connection) await connection.end();
-    }
-});
-
-// 3. SỬA ngữ pháp
-app.put('/api/admin/grammar/:id', requireAdmin, async (req, res) => {
-    let connection;
-    try {
-        const id = req.params.id;
         const { name, usage_desc, formulas, examples } = req.body;
-
         connection = await mysql.createConnection(dbConfig);
-        
-        await connection.execute(
-            'UPDATE grammar_tenses SET name=?, usage_desc=?, formulas=?, examples=? WHERE id=?',
-            [name, usage_desc, formulas, examples, id]
-        );
-        
-        res.json({ message: "Đã cập nhật ngữ pháp!" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    } finally {
-        if (connection) await connection.end();
-    }
+        const newId = 't' + Math.floor(Math.random() * 100000);
+        await connection.execute('INSERT INTO grammar_tenses (id, name, usage_desc, formulas, examples) VALUES (?, ?, ?, ?, ?)', [newId, name, usage_desc, formulas, examples]);
+        res.json({ message: "Thêm lý thuyết thành công!" });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
 });
 
-// 4. XÓA ngữ pháp
-app.delete('/api/admin/grammar/:id', requireAdmin, async (req, res) => {
+app.put('/api/admin/grammar_theory/:id', requireAdmin, async (req, res) => {
     let connection;
     try {
-        const id = req.params.id;
+        const { name, usage_desc, formulas, examples } = req.body;
         connection = await mysql.createConnection(dbConfig);
-        await connection.execute('DELETE FROM grammar_tenses WHERE id=?', [id]);
-        res.json({ message: "Đã xóa ngữ pháp!" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    } finally {
-        if (connection) await connection.end();
-    }
+        await connection.execute('UPDATE grammar_tenses SET name=?, usage_desc=?, formulas=?, examples=? WHERE id=?', [name, usage_desc, formulas, examples, req.params.id]);
+        res.json({ message: "Cập nhật lý thuyết thành công!" });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
+});
+
+app.delete('/api/admin/grammar_theory/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute('DELETE FROM grammar_tenses WHERE id=?', [req.params.id]);
+        await connection.execute('DELETE FROM grammar_questions WHERE tense_id=?', [req.params.id]); // Xóa sạch bài tập của Thì này
+        res.json({ message: "Đã xóa toàn bộ lý thuyết và bài tập liên quan!" });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
+});
+
+// ==========================================
+// 2. API QUẢN LÝ BÀI TẬP GRAMMAR
+// ==========================================
+app.get('/api/admin/grammar_practice', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        // Tự động JOIN với bảng tenses để lấy Tên Thì hiển thị cho đẹp
+        const [rows] = await connection.execute('SELECT q.*, t.name as tense_name FROM grammar_questions q JOIN grammar_tenses t ON q.tense_id = t.id ORDER BY q.id DESC');
+        res.json(rows);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
+});
+
+app.post('/api/admin/grammar_practice', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { tense_id, category, question_text, options, correct_answer, explanation } = req.body;
+        connection = await mysql.createConnection(dbConfig);
+        const optsJSON = JSON.stringify(options); 
+        await connection.execute('INSERT INTO grammar_questions (tense_id, category, question_text, options, correct_answer, explanation) VALUES (?, ?, ?, ?, ?, ?)', [tense_id, category, question_text, optsJSON, correct_answer, explanation || '']);
+        res.json({ message: "Thêm bài tập thành công!" });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
+});
+
+app.put('/api/admin/grammar_practice/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { tense_id, category, question_text, options, correct_answer, explanation } = req.body;
+        connection = await mysql.createConnection(dbConfig);
+        const optsJSON = JSON.stringify(options);
+        await connection.execute('UPDATE grammar_questions SET tense_id=?, category=?, question_text=?, options=?, correct_answer=?, explanation=? WHERE id=?', [tense_id, category, question_text, optsJSON, correct_answer, explanation || '', req.params.id]);
+        res.json({ message: "Cập nhật bài tập thành công!" });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
+});
+
+app.delete('/api/admin/grammar_practice/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute('DELETE FROM grammar_questions WHERE id=?', [req.params.id]);
+        res.json({ message: "Đã xóa câu hỏi!" });
+    } catch (error) { res.status(500).json({ error: error.message }); }
+    finally { if (connection) await connection.end(); }
 });
 
 // ==========================================
@@ -781,6 +798,91 @@ app.delete('/api/admin/writing/:id', requireAdmin, async (req, res) => {
         connection = await mysql.createConnection(dbConfig);
         await connection.execute('DELETE FROM writing_topics WHERE id=?', [req.params.id]);
         res.json({ message: "Đã xóa chủ đề!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// ==========================================
+//        API QUẢN LÝ USER (ADMIN PANELS)
+// ==========================================
+
+// 1. LẤY danh sách toàn bộ người dùng
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        // Lấy thông tin trừ mật khẩu để đảm bảo bảo mật
+        const [rows] = await connection.execute('SELECT id, email, role FROM users ORDER BY id DESC');
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// 2. THÊM tài khoản mới từ Admin (Mật khẩu mặc định: 123456)
+app.post('/api/admin/users', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { email, role } = req.body;
+        if (!email || !role) return res.status(400).json({ error: "Vui lòng nhập đủ thông tin!" });
+
+        connection = await mysql.createConnection(dbConfig);
+        const [existing] = await connection.execute('SELECT id FROM users WHERE email = ?', [email]);
+        if (existing.length > 0) return res.status(400).json({ error: "Email này đã được đăng ký hệ thống!" });
+
+        // Tạo mật khẩu mặc định được mã hóa cho tài khoản mới tạo
+        const defaultHashedPassword = await bcrypt.hash('123456', 10);
+        await connection.execute(
+            'INSERT INTO users (email, password, role) VALUES (?, ?, ?)',
+            [email, defaultHashedPassword, role]
+        );
+        res.json({ message: "Thêm thành viên thành công! Mật khẩu mặc định là: 123456" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// 3. SỬA thông tin/Quyền hạn người dùng
+app.put('/api/admin/users/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const id = req.params.id;
+        const { email, role } = req.body;
+
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute(
+            'UPDATE users SET email = ?, role = ? WHERE id = ?',
+            [email, role, id]
+        );
+        res.json({ message: "Cập nhật thông tin thành viên thành công!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) await connection.end();
+    }
+});
+
+// 4. XÓA tài khoản thành viên
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const id = req.params.id;
+        
+        // Ngăn chặn hành vi Admin vô tình tự xóa chính mình khỏi hệ thống
+        if (parseInt(id) === req.session.userId) {
+            return res.status(400).json({ error: "Hệ thống chặn: Bạn không được tự xóa tài khoản của chính mình!" });
+        }
+
+        connection = await mysql.createConnection(dbConfig);
+        await connection.execute('DELETE FROM users WHERE id = ?', [id]);
+        res.json({ message: "Đã xóa thành viên ra khỏi hệ thống!" });
     } catch (error) {
         res.status(500).json({ error: error.message });
     } finally {
